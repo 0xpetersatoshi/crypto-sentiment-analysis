@@ -18,15 +18,9 @@ package:
    - ./bin/**
 
 functions:
-  hello:
-    handler: bin/hello
-    events:
-      - http:
-          path: hello
-          method: get
-  world:
-    handler: bin/world
-    events:
-      - http:
-          path: world
-          method: get
+  pull:
+    handler: bin/crypto
+    environment:
+      AWS_REGION_PB: ${env:AWS_REGION_PB}
+      S3_BUCKET_DATA_LAKE: ${env:S3_BUCKET_DATA_LAKE}
+      CRYPTO_COMPARE_KEY: ${env:CRYPTO_COMPARE_KEY}
