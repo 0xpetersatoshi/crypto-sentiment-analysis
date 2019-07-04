@@ -1,4 +1,4 @@
-service: crypto-data # NOTE: update this with your service name
+service: crypto-data
 frameworkVersion: ">=1.28.0 <2.0.0"
 
 provider:
@@ -26,3 +26,4 @@ functions:
       AWS_REGION_PB: ${env:AWS_REGION_PB}
       S3_BUCKET_DATA_LAKE: ${env:S3_BUCKET_DATA_LAKE}
       CRYPTO_COMPARE_KEY: ${env:CRYPTO_COMPARE_KEY}
+      STAGE: ${self:provider.stage}

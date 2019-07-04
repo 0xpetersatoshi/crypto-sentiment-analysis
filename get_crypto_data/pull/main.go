@@ -51,9 +51,10 @@ var (
 	apiKey   = os.Getenv("CRYPTO_COMPARE_KEY")
 	base     = "https://min-api.cryptocompare.com"
 	path     = "data/histohour"
+	prefix   = "%s/raw/crypto-api-data/crypto-compare/hourly-data/%s/%s_%s"
+	stage    = os.Getenv("STAGE")
 	t        = time.Now().Format("2006-01-02-150405")
 	filename = "/tmp/response.json"
-	prefix   = "/crypto-api-data/crypto-compare/hourly/%s/%s_%s"
 )
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
@@ -88,7 +89,7 @@ func Handler(ctx context.Context) {
 	svc := s3manager.NewUploader(sess)
 
 	log.Println("Uploading file to S3...")
-	s3Prefix := formatS3Prefix(prefix, data.FromSymbol, t, filename)
+	s3Prefix := formatS3Prefix(prefix, stage, data.FromSymbol, t, filename)
 	log.Println(s3Prefix)
 	result, err := svc.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucket),
@@ -152,6 +153,6 @@ func writeToJSON(payload cryptoHourly, filepath string) {
 	}
 }
 
-func formatS3Prefix(prefix, fsym, t, filename string) string {
-	return fmt.Sprintf(prefix, fsym, t, filepath.Base(filename))
+func formatS3Prefix(prefix, stage, fsym, t, filename string) string {
+	return fmt.Sprintf(prefix, stage, fsym, t, filepath.Base(filename))
 }
