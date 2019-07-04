@@ -8,6 +8,7 @@ provider:
   region: ${env:AWS_REGION}
   profile: sls-user
   memorySize: 512
+  role: ${env:LAMBDA_DEFAULT_ROLE}
   deploymentBucket:
     name: ${env:S3_BUCKET_SERVERLESS}
 
@@ -20,6 +21,7 @@ package:
 functions:
   pull:
     handler: bin/crypto
+    timeout: 10
     environment:
       AWS_REGION_PB: ${env:AWS_REGION_PB}
       S3_BUCKET_DATA_LAKE: ${env:S3_BUCKET_DATA_LAKE}
