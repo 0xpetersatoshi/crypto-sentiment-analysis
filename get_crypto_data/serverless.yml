@@ -27,3 +27,7 @@ functions:
       S3_BUCKET_DATA_LAKE: ${env:S3_BUCKET_DATA_LAKE}
       CRYPTO_COMPARE_KEY: ${env:CRYPTO_COMPARE_KEY}
       STAGE: ${self:provider.stage}
+    events:
+      - schedule:
+          rate: rate(15 minutes)
+          enabled: true
