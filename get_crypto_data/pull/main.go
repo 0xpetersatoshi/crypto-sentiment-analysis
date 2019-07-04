@@ -67,8 +67,6 @@ func Handler(ctx context.Context) {
 
 	apiURL := buildURL(base, path, queryStringParams)
 
-	log.Println("Encoded url:", apiURL)
-
 	data := apiResponseToStruct(apiURL, cryptoHourly{})
 	data.FromSymbol = queryStringParams["fsym"]
 	data.ToSymbol = queryStringParams["tsym"]
