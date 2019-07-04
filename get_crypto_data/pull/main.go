@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-type cryptoHourly struct {
+type cryptoData struct {
 	Response   string `json:"Response"`
 	Type       int    `json:"Type"`
 	Aggregated bool   `json:"Aggregated"`
@@ -46,60 +46,60 @@ type cryptoHourly struct {
 }
 
 var (
-	region   = os.Getenv("AWS_REGION_PB")
-	bucket   = os.Getenv("S3_BUCKET_DATA_LAKE")
-	apiKey   = os.Getenv("CRYPTO_COMPARE_KEY")
-	base     = "https://min-api.cryptocompare.com"
-	path     = "data/histohour"
-	prefix   = "%s/raw/crypto-api-data/crypto-compare/hourly-data/%s/%s_%s"
-	stage    = os.Getenv("STAGE")
-	t        = time.Now().Format("2006-01-02-150405")
-	filename = "/tmp/response.json"
+	region     = os.Getenv("AWS_REGION_PB")
+	bucket     = os.Getenv("S3_BUCKET_DATA_LAKE")
+	apiKey     = os.Getenv("CRYPTO_COMPARE_KEY")
+	base       = "https://min-api.cryptocompare.com"
+	path       = "data/histominute"
+	prefix     = "%s/raw/crypto-api-data/crypto-compare/minute-data/%s/%s_%s"
+	stage      = os.Getenv("STAGE")
+	t          = time.Now().Format("2006-01-02-150405")
+	filename   = "/tmp/response.json"
+	currencies = []string{"BTC", "ETH", "XRP", "LTC"}
+	limit      = getEnv("CC_RESPONSE_LIMIT", "15")
 )
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(ctx context.Context) {
-	// Define query string params
-	queryStringParams := make(map[string]string)
-	queryStringParams["fsym"] = "BTC"
-	queryStringParams["tsym"] = "USD"
-	queryStringParams["limit"] = "10"
-	queryStringParams["api_key"] = apiKey
 
-	apiURL := buildURL(base, path, queryStringParams)
+	for _, v := range currencies {
+		queryStringParams := buildQueryStringParams(v, limit)
+		apiURL := buildURL(base, path, queryStringParams)
 
-	data := apiResponseToStruct(apiURL, cryptoHourly{})
-	data.FromSymbol = queryStringParams["fsym"]
-	data.ToSymbol = queryStringParams["tsym"]
-	log.Println("Writting response to file...")
-	writeToJSON(data, filename)
+		data := apiResponseToStruct(apiURL, cryptoData{})
+		data.FromSymbol = queryStringParams["fsym"]
+		data.ToSymbol = queryStringParams["tsym"]
+		log.Println("Writting response to file...")
+		writeToJSON(data, filename)
 
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatal("Failed to open file ", err.Error())
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatal("Failed to open file ", err.Error())
+		}
+		defer file.Close()
+
+		// Set up S3 connection
+		config := aws.Config{
+			Region: aws.String(region),
+			// Credentials: credentials.NewSharedCredentials("", "personal"),
+		}
+		sess := session.New(&config)
+		svc := s3manager.NewUploader(sess)
+
+		log.Println("Uploading file to S3...")
+		s3Prefix := formatS3Prefix(prefix, stage, data.FromSymbol, t, filename)
+		log.Println(s3Prefix)
+		result, err := svc.Upload(&s3manager.UploadInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(s3Prefix),
+			Body:   file,
+		})
+		if err != nil {
+			log.Fatal("Error uploading to S3:", err.Error())
+		}
+		log.Printf("Successfully uploaded %s to %s\n", filepath.Base(filename), result.Location)
 	}
-	defer file.Close()
 
-	// Set up S3 connection
-	config := aws.Config{
-		Region: aws.String(region),
-		// Credentials: credentials.NewSharedCredentials("", "personal"),
-	}
-	sess := session.New(&config)
-	svc := s3manager.NewUploader(sess)
-
-	log.Println("Uploading file to S3...")
-	s3Prefix := formatS3Prefix(prefix, stage, data.FromSymbol, t, filename)
-	log.Println(s3Prefix)
-	result, err := svc.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(s3Prefix),
-		Body:   file,
-	})
-	if err != nil {
-		log.Fatal("Error uploading to S3:", err.Error())
-	}
-	log.Printf("Successfully uploaded %s to %s\n", filepath.Base(filename), result.Location)
 }
 
 func main() {
@@ -127,7 +127,7 @@ func buildURL(base, path string, queryParams map[string]string) string {
 	return baseURL.String()
 }
 
-func apiResponseToStruct(url string, payload cryptoHourly) cryptoHourly {
+func apiResponseToStruct(url string, payload cryptoData) cryptoData {
 	response, err := http.Get(url)
 	if err != nil {
 		log.Fatal("Error getting a response ", err.Error())
@@ -141,7 +141,7 @@ func apiResponseToStruct(url string, payload cryptoHourly) cryptoHourly {
 	return payload
 }
 
-func writeToJSON(payload cryptoHourly, filepath string) {
+func writeToJSON(payload cryptoData, filepath string) {
 	file, err := json.MarshalIndent(payload, "", " ")
 	if err != nil {
 		log.Fatal("Error marshaling to json ", err.Error())
@@ -155,4 +155,23 @@ func writeToJSON(payload cryptoHourly, filepath string) {
 
 func formatS3Prefix(prefix, stage, fsym, t, filename string) string {
 	return fmt.Sprintf(prefix, stage, fsym, t, filepath.Base(filename))
+}
+
+func buildQueryStringParams(fromSymbol, limit string) map[string]string {
+	// Define query string params
+	queryStringParams := make(map[string]string)
+	queryStringParams["fsym"] = fromSymbol
+	queryStringParams["tsym"] = "USD"
+	queryStringParams["limit"] = limit
+	queryStringParams["api_key"] = apiKey
+
+	return queryStringParams
+}
+
+func getEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
 }
