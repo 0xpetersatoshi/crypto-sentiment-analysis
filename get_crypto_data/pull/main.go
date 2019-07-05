@@ -51,9 +51,13 @@ var (
 	apiKey     = os.Getenv("CRYPTO_COMPARE_KEY")
 	base       = "https://min-api.cryptocompare.com"
 	path       = "data/histominute"
-	prefix     = "%s/raw/crypto-api-data/crypto-compare/minute-data/%s/%s_%s"
+	prefix     = "%s/raw/crypto-api-data/crypto-compare/minute-data/%d/%d/%d/%s/%s_%d_%s"
 	stage      = os.Getenv("STAGE")
-	t          = time.Now().Format("2006-01-02-150405")
+	t          = time.Now()
+	year       = t.Year()
+	month      = int(t.Month())
+	day        = t.Day()
+	timestamp  = t.Format("2006-01-02-150405")
 	filename   = "/tmp/response.json"
 	currencies = []string{"BTC", "ETH", "XRP", "LTC"}
 	limit      = getEnv("CC_RESPONSE_LIMIT", "15")
@@ -87,7 +91,8 @@ func Handler(ctx context.Context) {
 		svc := s3manager.NewUploader(sess)
 
 		log.Println("Uploading file to S3...")
-		s3Prefix := formatS3Prefix(prefix, stage, data.FromSymbol, t, filename)
+		val := getUniqueValue(data)
+		s3Prefix := formatS3Prefix(prefix, stage, data.FromSymbol, timestamp, filename, year, month, day, val)
 		log.Println(s3Prefix)
 		result, err := svc.Upload(&s3manager.UploadInput{
 			Bucket: aws.String(bucket),
@@ -153,8 +158,8 @@ func writeToJSON(payload cryptoData, filepath string) {
 	}
 }
 
-func formatS3Prefix(prefix, stage, fsym, t, filename string) string {
-	return fmt.Sprintf(prefix, stage, fsym, t, filepath.Base(filename))
+func formatS3Prefix(prefix, stage, fsym, t, filename string, year, month, day, val int) string {
+	return fmt.Sprintf(prefix, stage, year, month, day, fsym, t, val, filepath.Base(filename))
 }
 
 func buildQueryStringParams(fromSymbol, limit string) map[string]string {
@@ -174,4 +179,8 @@ func getEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func getUniqueValue(data cryptoData) int {
+	return data.Data[len(data.Data)-1].Time
 }
