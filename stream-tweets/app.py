@@ -1,8 +1,15 @@
 import json
 import os
+import logging
 
 import boto3
 from TwitterAPI import TwitterAPI
+
+logging.basicConfig(
+    format='[%(asctime)s - %(name)s - %(levelname)s] - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 kinesis = boto3.client(
     'kinesis',
@@ -18,8 +25,33 @@ twitter = TwitterAPI(
     os.environ['TWITTER_ACCESS_TOKEN_SECRET']
 )
 
-params = {'track': 'bitcoin'}
+tracks = [
+    'bitcoin',
+    'etherium',
+    'litecoin',
+    'ripple',
+    'btc',
+    'eth',
+    'ltc',
+    'xrp',
+    'crypto',
+    'cryptocurrency',
+    'cryptocurrencies'
+    ]
+params = {'track': tracks}
 stream = twitter.request('statuses/filter', params)
 
+tweets_processed = 0
 for tweet in stream:
-    print(json.dumps(tweet))
+    if tweet['retweeted']:
+        continue
+
+    tweets_processed += 1
+    if tweets_processed % 20 == 0:
+        logger.info(f'{tweets_processed} tweets proccessed')
+
+    kinesis.put_record(
+        StreamName='twitter',
+        Data=json.dumps(tweet),
+        PartitionKey=tweet['lang']
+        )
