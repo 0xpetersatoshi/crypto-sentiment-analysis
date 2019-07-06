@@ -1,0 +1,4 @@
+boto==2.49.0
+boto3==1.9.162
+botocore==1.12.163
+TwitterAPI==2.5.9
