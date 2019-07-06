@@ -43,7 +43,7 @@ stream = twitter.request('statuses/filter', params)
 
 tweets_processed = 0
 for tweet in stream:
-    if tweet['retweeted']:
+    if tweet['retweeted'] or tweet['text'].startswith('RT '):
         continue
 
     tweets_processed += 1
