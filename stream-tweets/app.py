@@ -43,9 +43,12 @@ stream = twitter.request('statuses/filter', params)
 
 tweets_processed = 0
 for tweet in stream:
-    if tweet['retweeted'] or tweet['text'].startswith('RT '):
-        continue
-
+    try:
+        if tweet['retweeted'] or tweet['text'].startswith('RT '):
+            continue
+    except KeyError as e:
+        logger.error('Exception ocurred', exc_info=True)
+    
     tweets_processed += 1
     if tweets_processed % 20 == 0:
         logger.info(f'{tweets_processed} tweets proccessed')
