@@ -48,6 +48,8 @@ for tweet in stream:
             continue
     except KeyError as e:
         logger.error('Exception ocurred', exc_info=True)
+        logger.info(f'Tweet: {json.dumps(tweet, indent=4)}')
+        continue
     
     tweets_processed += 1
     if tweets_processed % 20 == 0:
