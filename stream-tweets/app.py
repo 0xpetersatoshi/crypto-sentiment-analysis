@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import time
 
 import boto3
 from TwitterAPI import TwitterAPI
@@ -46,10 +47,21 @@ for tweet in stream:
     try:
         if tweet['retweeted'] or tweet['text'].startswith('RT '):
             continue
-    except KeyError as e:
-        logger.error('Exception ocurred', exc_info=True)
-        logger.info(f'Tweet: {json.dumps(tweet, indent=4)}')
-        continue
+    except Exception as e:
+        exception = type(e).__name__
+        if exception == 'KeyError':
+            logger.error('Exception ocurred', exc_info=True)
+            logger.info(f'Tweet: {json.dumps(tweet, indent=4)}')
+            continue
+        elif exception.startswith('Twitter'):
+            logger.error('Exception ocurred', exc_info=True)
+            sleep_time = 60
+            logger.info(f'Sleeping app for {sleep_time} to recover...')
+            time.sleep(60)
+            continue
+        else:
+            logger.error('Exception ocurred', exc_info=True)
+            continue
     
     tweets_processed += 1
     if tweets_processed % 20 == 0:
